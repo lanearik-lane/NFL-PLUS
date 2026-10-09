@@ -14,7 +14,7 @@ if errorlevel 1 (
 
 :: Install dependencies
 echo Installing dependencies...
-python -m pip install streamlit requests pandas numpy --quiet
+python -m pip install "streamlit>=1.65.0" requests pandas numpy --quiet
 
 echo.
 echo Starting NFL Plus...

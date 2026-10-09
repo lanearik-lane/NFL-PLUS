@@ -12,7 +12,7 @@ fi
 
 # Install dependencies
 echo "Installing dependencies..."
-python3 -m pip install streamlit requests pandas numpy --quiet
+python3 -m pip install "streamlit>=1.65.0" requests pandas numpy --quiet
 
 echo
 echo "Starting NFL Plus..."
