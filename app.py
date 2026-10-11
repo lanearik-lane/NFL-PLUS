@@ -558,9 +558,11 @@ def get_season():
     if now<reg: return year,1,max(1,min((now-pre).days//7+1,4))
     if now<play:
         raw_wk=max(1,min((now-reg).days//7+1,18))
-        # Advance to next week Mon–Wed (after Sun games, before next Thu kickoff)
-        # NFL weeks run Thu–Mon; Mon/Tue/Wed = between weeks → show upcoming week
-        if now.weekday() in (0,1,2) and raw_wk<18:
+        # Advance to next week Mon–Wed OR late Sunday (after 8pm ET) when
+        # the week's games are winding down — show upcoming week's picks
+        late_sun = now.weekday()==6 and now.hour>=20
+        between_weeks = now.weekday() in (0,1,2)
+        if (late_sun or between_weeks) and raw_wk<18:
             raw_wk=min(raw_wk+1,18)
         return year,2,raw_wk
     return year+1,3,max(1,min((now-play).days//7+1,4))
@@ -952,101 +954,19 @@ with tab2:
     h('<div style="margin-top:12px;font-size:10px;color:#1c2540;text-align:center">'
       'Stats auto-fetched from ESPN Core API · For entertainment only</div>')
 
-# ══ TAB 3 — WEEK 6 SHARP PICKS ═══════════════════════════════════════════════
+# ══ TAB 3 — SHARP PICKS (live week) ══════════════════════════════════════════
 with tab3:
-    h(f'<div class="section-title">Week {cur_wk} · Sharp Picks</div>')
+    # Fetch live schedule for the upcoming week so picks are always current
+    with st.spinner("Loading picks…"):
+        raw3 = fetch_schedule(sy, stype, cur_wk)
+    games3 = parse_games(raw3)
+    wt3 = raw3.get("week",{}).get("text", f"Week {cur_wk}")
 
-    # disclaimer
+    h(f'<div class="section-title">{wt3} · Sharp Picks</div>')
+
     h('<div style="background:#0d1117;border:1px solid #1c2130;border-radius:8px;'
       'padding:10px 16px;margin-bottom:18px;font-size:11px;color:#3a4460">'
       '⚠ For entertainment only. Always confirm lines at your sportsbook before wagering. Lines shown are look-ahead projections — verify current odds before betting.</div>')
-
-    WEEK6_PICKS = [
-        {"game":"SEA @ DEN","time":"Thu Oct 15 · 8:15 PM ET","net":"Prime",
-         "spread":"SEA -1.5","ou":"43.5","ml":"SEA +110 / DEN -130",
-         "ml_pick":"DEN +110","sp_pick":"SEA -1.5","ou_pick":"UNDER 43.5",
-         "ml_conf":"B","sp_conf":"B","ou_conf":"A+",
-         "td_player":"Kenneth Walker III","td_pos":"RB","td_odds":"+145",
-         "td_why":"High-vol workhorse; DEN allows RB TDs at top-5 rate; red-zone bell-cow"},
-        {"game":"HOU @ JAX","time":"Sun Oct 18 · 1:00 PM ET","net":"CBS",
-         "spread":"JAX -1.5","ou":"42.5","ml":"HOU -110 / JAX -110",
-         "ml_pick":"JAX -110","sp_pick":"JAX -1.5","ou_pick":"UNDER 42.5",
-         "ml_conf":"B","sp_conf":"B","ou_conf":"A",
-         "td_player":"Tank Bigsby","td_pos":"RB","td_odds":"+190",
-         "td_why":"4 TDs last 4 games; outplaying Etienne; home vs. weak HOU run D"},
-        {"game":"BAL @ CLE","time":"Sun Oct 18 · 1:00 PM ET","net":"CBS",
-         "spread":"BAL -6.5","ou":"44.5","ml":"BAL -265 / CLE +215",
-         "ml_pick":"BAL -265","sp_pick":"BAL -6.5","ou_pick":"OVER 44.5",
-         "ml_conf":"A","sp_conf":"A","ou_conf":"B",
-         "td_player":"Zay Flowers","td_pos":"WR","td_odds":"+155",
-         "td_why":"CLE dead last allowing WR TDs; 8 red-zone targets; top BAL option"},
-        {"game":"CAR @ PHI","time":"Sun Oct 18 · 1:00 PM ET","net":"FOX",
-         "spread":"PHI -6.5","ou":"43.5","ml":"CAR +220 / PHI -270",
-         "ml_pick":"PHI -270","sp_pick":"PHI -6.5","ou_pick":"UNDER 43.5",
-         "ml_conf":"A+","sp_conf":"A","ou_conf":"B+",
-         "td_player":"Saquon Barkley","td_pos":"RB","td_odds":"-130",
-         "td_why":"RB1 this season; massive red-zone share; CAR gives up most RB TDs in NFC"},
-        {"game":"CHI @ ATL","time":"Sun Oct 18 · 1:00 PM ET","net":"FOX",
-         "spread":"CHI -3.5","ou":"47.5","ml":"CHI -155 / ATL +130",
-         "ml_pick":"CHI -155","sp_pick":"CHI -3.5","ou_pick":"OVER 47.5",
-         "ml_conf":"A","sp_conf":"B+","ou_conf":"B",
-         "td_player":"Drake London","td_pos":"WR","td_odds":"+185",
-         "td_why":"Top ATL red-zone target; CHI ranks bot-5 vs WR1s; great value"},
-        {"game":"NO @ NYG","time":"Sun Oct 18 · 1:00 PM ET","net":"FOX",
-         "spread":"NYG -2.5","ou":"44.5","ml":"NO +115 / NYG -135",
-         "ml_pick":"NYG -135","sp_pick":"NYG -2.5","ou_pick":"UNDER 44.5",
-         "ml_conf":"B","sp_conf":"B","ou_conf":"B+",
-         "td_player":"Devin Singletary","td_pos":"RB","td_odds":"+210",
-         "td_why":"Home RB in NYG control game; NO soft vs ground attack; plus-money value"},
-        {"game":"NYJ @ NE","time":"Sun Oct 18 · 1:00 PM ET","net":"FOX",
-         "spread":"NE -9.5","ou":"42.5","ml":"NYJ +340 / NE -440",
-         "ml_pick":"NE -440","sp_pick":"NE -9.5","ou_pick":"UNDER 42.5",
-         "ml_conf":"A+","sp_conf":"A+","ou_conf":"A",
-         "td_player":"Stefon Diggs","td_pos":"WR","td_odds":"+140",
-         "td_why":"3 TDs in last 3 games; Jets worst pass D in AFC; NE rolling at home"},
-        {"game":"PIT @ TB","time":"Sun Oct 18 · 1:00 PM ET","net":"FOX",
-         "spread":"TB -1.5","ou":"45.5","ml":"PIT +105 / TB -125",
-         "ml_pick":"TB -125","sp_pick":"TB -1.5","ou_pick":"OVER 45.5",
-         "ml_conf":"B","sp_conf":"B","ou_conf":"B",
-         "td_player":"DK Metcalf","td_pos":"WR","td_odds":"+160",
-         "td_why":"TD in 3 straight; 5 rec/126 yds/TD last week; TB ranks bot-10 vs WR1s"},
-        {"game":"TEN @ IND","time":"Sun Oct 18 · 1:00 PM ET","net":"CBS",
-         "spread":"IND -3.5","ou":"47.5","ml":"TEN +160 / IND -190",
-         "ml_pick":"IND -190","sp_pick":"IND -3.5","ou_pick":"OVER 47.5",
-         "ml_conf":"A","sp_conf":"B+","ou_conf":"B",
-         "td_player":"Jonathan Taylor","td_pos":"RB","td_odds":"-110",
-         "td_why":"Bell-cow, fully healthy; TEN 27th-ranked run D — auto red-zone work"},
-        {"game":"ARI @ LAR","time":"Sun Oct 18 · 4:05 PM ET","net":"FOX",
-         "spread":"LAR -13.5","ou":"47.5","ml":"ARI +500 / LAR -700",
-         "ml_pick":"LAR -700","sp_pick":"LAR -13.5","ou_pick":"UNDER 47.5",
-         "ml_conf":"A+","sp_conf":"B+","ou_conf":"A",
-         "td_player":"Cooper Kupp","td_pos":"WR","td_odds":"-200",
-         "td_why":"Minus-odds lock; ARI last in pass D DVOA; 8+ targets every game"},
-        {"game":"BUF @ LV","time":"Sun Oct 18 · 4:05 PM ET","net":"FOX",
-         "spread":"BUF -6.5","ou":"47.5","ml":"BUF -270 / LV +220",
-         "ml_pick":"BUF -270","sp_pick":"BUF -6.5","ou_pick":"OVER 47.5",
-         "ml_conf":"A","sp_conf":"A","ou_conf":"B+",
-         "td_player":"Ashton Jeanty","td_pos":"RB","td_odds":"+145",
-         "td_why":"Home workhorse, elite after-contact; 15+ carries even in loss — plus-money value"},
-        {"game":"LAC @ KC","time":"Sun Oct 18 · 4:05 PM ET","net":"CBS",
-         "spread":"KC -2.5","ou":"46.5","ml":"LAC +120 / KC -140",
-         "ml_pick":"KC -140","sp_pick":"KC -2.5","ou_pick":"OVER 46.5",
-         "ml_conf":"B+","sp_conf":"B","ou_conf":"B",
-         "td_player":"Travis Kelce","td_pos":"TE","td_odds":"+130",
-         "td_why":"6 TDs already this season; Mahomes always locks in on Kelce in big moments"},
-        {"game":"DAL @ GB","time":"Sun Oct 18 · 8:20 PM ET","net":"NBC",
-         "spread":"GB -3.5","ou":"51.5","ml":"DAL +140 / GB -165",
-         "ml_pick":"GB -165","sp_pick":"GB -3.5","ou_pick":"OVER 51.5",
-         "ml_conf":"A","sp_conf":"B+","ou_conf":"A",
-         "td_player":"Romeo Doubs","td_pos":"WR","td_odds":"-200",
-         "td_why":"Highest-confidence TD per model; double-digit targets; DAL secondary vulnerable"},
-        {"game":"WSH @ SF","time":"Mon Oct 19 · 8:15 PM ET","net":"ESPN/ABC",
-         "spread":"SF -5.5","ou":"50.5","ml":"WSH +205 / SF -250",
-         "ml_pick":"SF -250","sp_pick":"SF -5.5","ou_pick":"OVER 50.5",
-         "ml_conf":"A+","sp_conf":"A","ou_conf":"A",
-         "td_player":"C. McCaffrey","td_pos":"RB","td_odds":"-145",
-         "td_why":"MNF showcase; CMC leads NFL in red-zone touches; WSH allows TDs on 64% of RZ drives"},
-    ]
 
     CONF_COLOR = {"A+":"#4cffaa","A":"#4cffaa","B+":"#5aa8ff","B":"#5aa8ff","C":"#ffc840","D":"#ff6b40"}
     CONF_BG    = {"A+":"#0d2a1a","A":"#0d2a1a","B+":"#0d1a2e","B":"#0d1a2e","C":"#201e0a","D":"#200a0a"}
@@ -1058,79 +978,101 @@ with tab3:
                 'background:' + bg + ';color:' + col + ';border:1px solid ' + col + '40">'
                 + c + '</span>')
 
-    for pk in WEEK6_PICKS:
-        row = (
-            '<div style="background:#0d1117;border:1px solid #1c2130;border-radius:12px;'
-            'margin-bottom:10px;overflow:hidden">'
-            # header
-            + '<div style="background:#080c14;border-bottom:1px solid #1c2130;'
-            'padding:10px 16px;display:flex;align-items:center;justify-content:space-between">'
-            + '<div style="font-family:Oswald,sans-serif;font-size:16px;font-weight:700;color:#fff">' + pk["game"] + '</div>'
-            + '<div style="display:flex;gap:12px;align-items:center">'
-            + '<div style="font-size:11px;color:#3a4460">' + pk["time"] + '</div>'
-            + '<div style="font-size:10px;color:#3a4460;background:#0f1520;border:1px solid #1c2130;'
-            'border-radius:4px;padding:2px 7px">' + pk["net"] + '</div>'
-            + '</div></div>'
-            # odds strip
-            + '<div style="display:flex;border-bottom:1px solid #1c2130">'
-            # ML
-            + '<div style="flex:1;padding:12px 16px;border-right:1px solid #1c2130">'
-            + '<div style="font-size:9px;font-weight:700;color:#2e3850;letter-spacing:1px;margin-bottom:6px">MONEYLINE ' + conf_badge(pk["ml_conf"]) + '</div>'
-            + '<div style="font-family:Oswald,sans-serif;font-size:18px;font-weight:700;color:#fff;margin-bottom:3px">' + pk["ml_pick"] + '</div>'
-            + '<div style="font-size:10px;color:#3a4460">' + pk["ml"] + '</div>'
-            + '</div>'
-            # Spread
-            + '<div style="flex:1;padding:12px 16px;border-right:1px solid #1c2130">'
-            + '<div style="font-size:9px;font-weight:700;color:#2e3850;letter-spacing:1px;margin-bottom:6px">SPREAD ' + conf_badge(pk["sp_conf"]) + '</div>'
-            + '<div style="font-family:Oswald,sans-serif;font-size:18px;font-weight:700;color:#fff;margin-bottom:3px">' + pk["sp_pick"] + '</div>'
-            + '<div style="font-size:10px;color:#3a4460">Line: ' + pk["spread"] + '</div>'
-            + '</div>'
-            # O/U
-            + '<div style="flex:1;padding:12px 16px;border-right:1px solid #1c2130">'
-            + '<div style="font-size:9px;font-weight:700;color:#2e3850;letter-spacing:1px;margin-bottom:6px">TOTAL O/U ' + conf_badge(pk["ou_conf"]) + '</div>'
-            + '<div style="font-family:Oswald,sans-serif;font-size:18px;font-weight:700;'
-            + ('color:#4cffaa' if 'OVER' in pk["ou_pick"] else 'color:#ff6b6b')
-            + ';margin-bottom:3px">' + pk["ou_pick"] + '</div>'
-            + '<div style="font-size:10px;color:#3a4460">Total: ' + pk["ou"] + '</div>'
-            + '</div>'
-            # TD Candidate
-            + '<div style="flex:1.3;padding:12px 16px;background:#07100e">'
-            + '<div style="font-size:9px;font-weight:700;color:#1a5a30;letter-spacing:1px;margin-bottom:6px">⚡ ANYTIME TD</div>'
-            + '<div style="font-family:Oswald,sans-serif;font-size:18px;font-weight:700;color:#4cffaa;margin-bottom:3px">' + pk["td_player"] + '</div>'
-            + '<span style="font-size:11px;font-weight:700;background:#0d2a1a;border:1px solid #1a5a30;'
-            'border-radius:4px;padding:1px 7px;color:#4cffaa;margin-right:6px">' + pk["td_odds"] + '</span>'
-            + '<span style="font-size:10px;color:#2a6040">' + pk["td_pos"] + '</span>'
-            + '<div style="font-size:10px;color:#2a6040;margin-top:4px;line-height:1.4">' + pk["td_why"] + '</div>'
-            + '</div>'
-            + '</div>'
-            + '</div>'
-        )
-        h(row)
+    if not games3:
+        h('<div style="padding:40px;text-align:center;color:#3a4460">No games found for this week.</div>')
+    else:
+        for g in games3:
+            p = predict(g["aa"], g["ha"], sy)
+            td_rec = get_td_candidate(g["aa"], g["ha"])
 
-    # Best bets summary box
-    h('<div style="margin-top:24px">')
-    h('<div class="section-title">Best Bets This Week</div>')
-    best = [
-        ("🔒 LOCK ML","PHI Eagles -270 vs CAR","CAR 0-5, Eagles dominant at home; safest ML of the slate","A+"),
-        ("🔒 LOCK ML","NE Patriots -440 vs NYJ","Jets winless, Patriots on fire at home — full game control","A+"),
-        ("💎 VALUE ML","CLE Browns +215 vs BAL","Ravens starting Cooper Rush; CLE defense has upset potential","B+"),
-        ("⚡ TD PARLAY","Saquon Barkley -130 + DK Metcalf +160 + Romeo Doubs -200","3-leg same-game TD parlay pays roughly 8:1","A"),
-        ("📈 BEST SPREAD","NE Patriots -9.5 vs NYJ","Jets are genuinely historically bad; NE should win by 17+","A+"),
-        ("🏆 GAME OF WEEK","DAL Cowboys at GB Packers · OVER 51.5","High-scoring rivalry; GB home; Dak vs. Love — expect fireworks","A"),
-    ]
-    for bet_type, pick, reason, conf in best:
-        col = CONF_COLOR.get(conf,"#fff"); bg = CONF_BG.get(conf,"#111")
-        h('<div style="background:#0d1117;border:1px solid #1c2130;border-radius:10px;'
-          'padding:14px 18px;margin-bottom:8px;display:flex;align-items:flex-start;gap:14px">'
-          '<div style="flex-shrink:0;width:28px;height:28px;border-radius:50%;'
-          'background:' + bg + ';border:1px solid ' + col + '40;'
-          'display:flex;align-items:center;justify-content:center;'
-          'font-size:9px;font-weight:800;color:' + col + '">' + conf + '</div>'
-          '<div>'
-          '<div style="font-size:10px;font-weight:700;color:#3a4460;letter-spacing:.5px;margin-bottom:3px">' + bet_type + '</div>'
-          '<div style="font-family:Oswald,sans-serif;font-size:15px;font-weight:700;color:#fff;margin-bottom:3px">' + pick + '</div>'
-          '<div style="font-size:11px;color:#2e3850">' + reason + '</div>'
-          '</div></div>')
-    h('</div>')
+            # Build time string
+            game_time_s = ""
+            if g["dt"]:
+                try:
+                    from datetime import timezone
+                    et = g["dt"].astimezone(timezone.utc)
+                    game_time_s = g["dt"].strftime("%a %b %-d · %-I:%M %p ET")
+                except: game_time_s = ""
+
+            sp_label, _ = spread_label(g["aa"], g["ha"], p["spread"])
+            ou_val = f"{p['tot']:.1f}"
+            ou_pick = ("OVER " if p["tl"]=="o" else "UNDER ") + ou_val
+            ml_pick = (f"{g['ha']} {mlf(p['hml'])}" if p["hwp"] >= 50
+                       else f"{g['aa']} {mlf(p['aml'])}")
+            ml_line = f"{g['aa']} {mlf(p['aml'])} / {g['ha']} {mlf(p['hml'])}"
+
+            td_html = ""
+            if td_rec:
+                td_html = (
+                    '<div style="flex:1.3;padding:12px 16px;background:#07100e">'
+                    '<div style="font-size:9px;font-weight:700;color:#1a5a30;letter-spacing:1px;margin-bottom:6px">⚡ ANYTIME TD</div>'
+                    '<div style="font-family:Oswald,sans-serif;font-size:18px;font-weight:700;color:#4cffaa;margin-bottom:3px">' + td_rec["player"] + '</div>'
+                    '<span style="font-size:11px;font-weight:700;background:#0d2a1a;border:1px solid #1a5a30;'
+                    'border-radius:4px;padding:1px 7px;color:#4cffaa;margin-right:6px">' + td_rec["odds"] + '</span>'
+                    '<span style="font-size:10px;color:#2a6040">' + td_rec["pos"] + '</span>'
+                    '<div style="font-size:10px;color:#2a6040;margin-top:4px;line-height:1.4">' + td_rec["reason"] + '</div>'
+                    '</div>'
+                )
+
+            row = (
+                '<div style="background:#0d1117;border:1px solid #1c2130;border-radius:12px;'
+                'margin-bottom:10px;overflow:hidden">'
+                '<div style="background:#080c14;border-bottom:1px solid #1c2130;'
+                'padding:10px 16px;display:flex;align-items:center;justify-content:space-between">'
+                '<div style="font-family:Oswald,sans-serif;font-size:16px;font-weight:700;color:#fff">'
+                + g["aa"] + ' @ ' + g["ha"] + '</div>'
+                '<div style="font-size:11px;color:#3a4460">' + game_time_s + '</div>'
+                '</div>'
+                '<div style="display:flex;border-bottom:1px solid #1c2130">'
+                '<div style="flex:1;padding:12px 16px;border-right:1px solid #1c2130">'
+                '<div style="font-size:9px;font-weight:700;color:#2e3850;letter-spacing:1px;margin-bottom:6px">MONEYLINE ' + conf_badge(p["mg"]) + '</div>'
+                '<div style="font-family:Oswald,sans-serif;font-size:18px;font-weight:700;color:#fff;margin-bottom:3px">' + ml_pick + '</div>'
+                '<div style="font-size:10px;color:#3a4460">' + ml_line + '</div>'
+                '</div>'
+                '<div style="flex:1;padding:12px 16px;border-right:1px solid #1c2130">'
+                '<div style="font-size:9px;font-weight:700;color:#2e3850;letter-spacing:1px;margin-bottom:6px">SPREAD ' + conf_badge(p["rg"]) + '</div>'
+                '<div style="font-family:Oswald,sans-serif;font-size:18px;font-weight:700;color:#fff;margin-bottom:3px">' + sp_label + '</div>'
+                '<div style="font-size:10px;color:#3a4460">Line: ' + sp_label + '</div>'
+                '</div>'
+                '<div style="flex:1;padding:12px 16px;border-right:1px solid #1c2130">'
+                '<div style="font-size:9px;font-weight:700;color:#2e3850;letter-spacing:1px;margin-bottom:6px">TOTAL O/U ' + conf_badge(p["ug"]) + '</div>'
+                '<div style="font-family:Oswald,sans-serif;font-size:18px;font-weight:700;'
+                + ('color:#4cffaa' if p["tl"]=="o" else 'color:#ff6b6b')
+                + ';margin-bottom:3px">' + ou_pick + '</div>'
+                '<div style="font-size:10px;color:#3a4460">Total: ' + ou_val + '</div>'
+                '</div>'
+                + td_html
+                + '</div></div>'
+            )
+            h(row)
+
+        # Best bets: top picks by grade
+        top = sorted(games3, key=lambda g: (
+            {"A+":0,"A":1,"B+":2,"B":3,"C":4,"D":5}.get(predict(g["aa"],g["ha"],sy)["mg"],9)
+        ))[:3]
+
+        h('<div style="margin-top:24px">')
+        h('<div class="section-title">Top Picks This Week</div>')
+        for g in top:
+            p = predict(g["aa"], g["ha"], sy)
+            ml_pick = (f"{g['ha']} {mlf(p['hml'])}" if p["hwp"] >= 50
+                       else f"{g['aa']} {mlf(p['aml'])}")
+            conf = p["mg"]
+            col = CONF_COLOR.get(conf,"#fff"); bg = CONF_BG.get(conf,"#111")
+            h('<div style="background:#0d1117;border:1px solid #1c2130;border-radius:10px;'
+              'padding:14px 18px;margin-bottom:8px;display:flex;align-items:flex-start;gap:14px">'
+              '<div style="flex-shrink:0;width:28px;height:28px;border-radius:50%;'
+              'background:' + bg + ';border:1px solid ' + col + '40;'
+              'display:flex;align-items:center;justify-content:center;'
+              'font-size:9px;font-weight:800;color:' + col + '">' + conf + '</div>'
+              '<div>'
+              '<div style="font-size:10px;font-weight:700;color:#3a4460;letter-spacing:.5px;margin-bottom:3px">🔒 MONEYLINE</div>'
+              '<div style="font-family:Oswald,sans-serif;font-size:15px;font-weight:700;color:#fff;margin-bottom:3px">'
+              + g["aa"] + ' @ ' + g["ha"] + ' — ' + ml_pick + '</div>'
+              '<div style="font-size:11px;color:#2e3850">Win probability: ' + str(p["hwp"] if p["hwp"]>=50 else p["awp"]) + '%</div>'
+              '</div></div>')
+        h('</div>')
+
     h('<div style="margin-top:12px;font-size:10px;color:#1c2540;text-align:center">'
-      f'Week {cur_wk} picks · For entertainment only · Must be 21+ where applicable · Always verify lines at your sportsbook</div>')
+      f'{wt3} picks · For entertainment only · Must be 21+ where applicable · Always verify lines at your sportsbook</div>')
+
