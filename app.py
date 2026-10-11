@@ -556,7 +556,13 @@ def get_season():
     pre=datetime(year,8,1); reg=datetime(year,9,9); play=datetime(year+1,1,16)
     if now<pre: return year,1,1
     if now<reg: return year,1,max(1,min((now-pre).days//7+1,4))
-    if now<play: return year,2,max(1,min((now-reg).days//7+1,18))
+    if now<play:
+        raw_wk=max(1,min((now-reg).days//7+1,18))
+        # Advance to next week Mon–Wed (after Sun games, before next Thu kickoff)
+        # NFL weeks run Thu–Mon; Mon/Tue/Wed = between weeks → show upcoming week
+        if now.weekday() in (0,1,2) and raw_wk<18:
+            raw_wk=min(raw_wk+1,18)
+        return year,2,raw_wk
     return year+1,3,max(1,min((now-play).days//7+1,4))
 
 def spread_label(aa, ha, sp):
@@ -731,7 +737,7 @@ h(f'''<div class="topbar">
 </div>''')
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
-tab1,tab2,tab3=st.tabs(["🏈  Schedule & Picks","🏆  Power Rankings","⚡  Week 6 Sharp Picks"])
+tab1,tab2,tab3=st.tabs(["🏈  Schedule & Picks","🏆  Power Rankings",f"⚡  Week {cur_wk} Sharp Picks"])
 
 # ══ TAB 1 — SCHEDULE ══════════════════════════════════════════════════════════
 with tab1:
@@ -948,12 +954,12 @@ with tab2:
 
 # ══ TAB 3 — WEEK 6 SHARP PICKS ═══════════════════════════════════════════════
 with tab3:
-    h('<div class="section-title">Week 6 · Oct 15–19 2026 · Sharp Picks</div>')
+    h(f'<div class="section-title">Week {cur_wk} · Sharp Picks</div>')
 
     # disclaimer
     h('<div style="background:#0d1117;border:1px solid #1c2130;border-radius:8px;'
       'padding:10px 16px;margin-bottom:18px;font-size:11px;color:#3a4460">'
-      '⚠ For entertainment only. Always confirm lines at your sportsbook before wagering. Lines shown are opening look-ahead as of early October 2026.</div>')
+      '⚠ For entertainment only. Always confirm lines at your sportsbook before wagering. Lines shown are look-ahead projections — verify current odds before betting.</div>')
 
     WEEK6_PICKS = [
         {"game":"SEA @ DEN","time":"Thu Oct 15 · 8:15 PM ET","net":"Prime",
@@ -1127,4 +1133,4 @@ with tab3:
           '</div></div>')
     h('</div>')
     h('<div style="margin-top:12px;font-size:10px;color:#1c2540;text-align:center">'
-      'Week 6 picks · Lines sourced Oct 2026 · For entertainment only · Must be 21+ where legal</div>')
+      f'Week {cur_wk} picks · For entertainment only · Must be 21+ where applicable · Always verify lines at your sportsbook</div>')
