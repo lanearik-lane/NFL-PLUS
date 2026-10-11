@@ -518,12 +518,27 @@ INJ_MULT = {"Out":1.0,"IR":1.0,"Doubtful":0.85,"Questionable":0.45,"Probable":0.
 # ── TD Candidates — best anytime touchdown play per matchup ──────────────────
 # Key = (away_abbr, home_abbr). Values: player, position, odds string, short reason
 TD_CANDIDATES = {
+    # Week 5 2026 — Oct 9–13
+    ("PHI","JAX"): ("Saquon Barkley","RB","-115","Dominant RZ bell-cow; JAX D ranks bottom-5 vs RBs"),
+    ("CHI","GB"):  ("Jordan Love","QB","+180","Love 7 TDs in 4 home games; CHI secondary giving up passing TDs"),
+    ("HOU","TEN"): ("Nico Collins","WR","+160","Top target in HOU offense; TEN weak vs WR1s all season"),
+    ("CIN","MIA"): ("Ja'Marr Chase","WR","-110","Elite red-zone WR; MIA secondary bottom-5 in pass D"),
+    ("DAL","WSH"): ("CeeDee Lamb","WR","+130","5 TDs through 4 games; WSH secondary vulnerable deep"),
+    ("ATL","CAR"): ("Drake London","WR","+155","Top red-zone target; CAR dead last vs WR1s in NFC"),
+    ("BUF","NE"):  ("Dalton Kincaid","TE","+200","Emerging red-zone TE; NE soft vs TEs this season"),
+    ("LAR","ARI"): ("Puka Nacua","WR","+145","Hot streak, 6 rec TDs on season; ARI worst pass D"),
+    ("KC","LV"):   ("Travis Kelce","TE","-110","6 TDs in 5 games; LV give up TEs freely"),
+    ("SF","SEA"):  ("C. McCaffrey","RB","-130","Top RZ touch leader in NFL; SEA solid but CMC unstoppable"),
+    ("DEN","LAC"): ("Courtland Sutton","WR","+175","Leading DEN target; LAC secondary ranked 28th"),
+    ("IND","NYG"): ("Jonathan Taylor","RB","-120","Bell-cow; NYG give up most RB TDs at home this year"),
+    ("PIT","BAL"): ("George Pickens","WR","+185","Rivalry game; BAL secondary overloaded vs physical WRs"),
+    ("NO","TB"):   ("Chris Godwin","WR","+155","Home field; NO secondary ranks bottom-10 vs slot WRs"),
     # Week 6 2026 — Oct 15–19
     ("SEA","DEN"): ("K. Walker III","RB","+145","High-vol RB vs DEN who leaks RB TDs; red-zone bell-cow"),
-    ("HOU","JAX"): ("Tank Bigsby","RB","+190","4 TDs last 4G; outplaying Etienne in red zone at home"),
+    ("JAX","HOU"): ("Tank Bigsby","RB","+190","4 TDs last 4G; outplaying Etienne in red zone at home"),
     ("BAL","CLE"): ("Zay Flowers","WR","+155","CLE dead last allowing WR TDs; 8 RZ targets on season"),
     ("CAR","PHI"): ("Saquon Barkley","RB","-130","RB1, dominant RZ share; CAR gives up most RB TDs in NFC"),
-    ("CHI","ATL"): ("Drake London","WR","+185","Top ATL red-zone target; CHI ranks bot-5 vs WR1s"),
+    ("ATL","CHI"): ("Drake London","WR","+185","Top ATL red-zone target; CHI ranks bot-5 vs WR1s"),
     ("NO","NYG"):  ("Devin Singletary","RB","+210","Home RB in NYG control game; NO soft vs ground attack"),
     ("NYJ","NE"):  ("Stefon Diggs","WR","+140","3 TDs last 3G; Jets worst pass D in AFC"),
     ("PIT","TB"):  ("DK Metcalf","WR","+160","TD 3 straight; 126 yds/TD last wk; TB bot-10 vs WR1s"),
@@ -558,9 +573,8 @@ def get_season():
     if now<reg: return year,1,max(1,min((now-pre).days//7+1,4))
     if now<play:
         raw_wk=max(1,min((now-reg).days//7+1,18))
-        # Advance to next week Mon–Wed OR late Sunday (after 8pm ET) when
-        # the week's games are winding down — show upcoming week's picks
-        late_sun = now.weekday()==6 and now.hour>=20
+        # Advance to next week Mon/Tue/Wed, or late Sun after 10pm when games are done
+        late_sun = now.weekday()==6 and now.hour>=22
         between_weeks = now.weekday() in (0,1,2)
         if (late_sun or between_weeks) and raw_wk<18:
             raw_wk=min(raw_wk+1,18)
